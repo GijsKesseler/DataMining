@@ -1,0 +1,67 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+
+# Inlezen van de dataset
+
+df = pd.read_csv("Air_Quality.csv")
+
+# Verwijder rijen met ontbrekende waarden in 'Data Value'
+df = df.dropna(subset=['Data Value'])
+
+# Data Value omzetten naar categorieën
+df['Air_Quality_Level'] = pd.qcut(df['Data Value'], q=3, labels=['Good', 'Moderate', 'Poor'])
+
+# Selecteer kenmerken voor het model (gebruik numerieke kolommen)
+features = ['Indicator ID', 'Geo Join ID', 'Start_Date']
+
+# Converteer 'Start_Date' naar numerieke waarden
+df['Start_Date'] = pd.to_datetime(df['Start_Date'], errors='coerce').astype('int64') // 10**9
+
+# Verwijder rijen met ontbrekende numerieke waarden
+df = df.dropna(subset=features)
+
+# Definieer X (features) en y (labels)
+X = df[features]
+y = df['Air_Quality_Level']
+
+# Encodeer de labels naar numerieke waarden
+le = LabelEncoder()
+y_encoded = le.fit_transform(y)
+
+# Splits de dataset in training en test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42069)
+
+# Normaliseer de kenmerken
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Train een KNN-model
+knn = KNeighborsClassifier(n_neighbors=5)
+knn.fit(X_train_scaled, y_train)
+
+# Model evalueren
+accuracy = knn.score(X_test_scaled, y_test)
+print(f'Model Accuracy: {accuracy:.2%}')
+
+# Visualisatie van de data-distributie
+plt.figure(figsize=(8,5))
+sns.histplot(df['Data Value'], bins=30, kde=True, color='blue')
+plt.xlabel('Data Value')
+plt.ylabel('Frequentie')
+plt.title('Verdeling van Data Value')
+plt.show()
+
+# Confusiematrix visualiseren
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
+y_pred = knn.predict(X_test_scaled)
+cm = confusion_matrix(y_test, y_pred)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=le.classes_)
+disp.plot(cmap='Blues')
+plt.title('Confusiematrix van KNN-model')
+plt.show()
